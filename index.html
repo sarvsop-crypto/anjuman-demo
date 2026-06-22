@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anjuman — secure video meetings</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Hanken Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased;background:#14130f}
+  button{font-family:inherit}
+  @keyframes anjPulse{0%,100%{opacity:.55}50%{opacity:1}}
+  .anj-pad{padding:22px 40px}
+  .anj-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:64px;max-width:1140px;width:100%;align-items:center}
+  @media (max-width:820px){
+    .anj-hero{grid-template-columns:1fr !important;gap:32px !important}
+    .anj-visual{display:none !important}
+    .anj-pad{padding:20px !important}
+  }
+  /* call overlay */
+  #anj-call{position:fixed;inset:0;z-index:50;background:#14130f;display:none}
+  #anj-call.open{display:block}
+  #anj-call .frame{width:100%;height:100%}
+  .anj-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f2efe6;font-family:'Space Grotesk';font-size:15px;gap:10px}
+  .anj-spin{width:18px;height:18px;border:2px solid #45c69b;border-top-color:transparent;border-radius:99px;animation:anjSpin 1s linear infinite}
+  @keyframes anjSpin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<!-- real Jitsi call mounts here -->
+<div id="anj-call"><div class="anj-loading"><span class="anj-spin"></span><span id="anj-call-msg">Connecting…</span></div></div>
+
+<script>
+// =============================================================================
+// Anjuman MVP frontend — welcome screen (ported 1:1 from the Claude design) +
+// a REAL Jitsi call launched via the Jitsi External API (iframe).
+//
+// CALL ENGINE: meet.jit.si for the demo (works instantly, no backend deploy).
+// Swap JITSI_DOMAIN to your self-hosted Anjuman domain when it's live — that's
+// the only line that changes to make calls run on your own server.
+// =============================================================================
+const JITSI_DOMAIN = 'meet.jit.si';     // <- swap to 'meet.anjuman.uz' when self-hosted
+const ROOM_PREFIX  = 'anjuman-';        // namespace rooms on the shared public server
+
+const T = {
+  en: { badge:'Open-source & private', tagline:'Conversations that stay yours.',
+        sub:'Encrypted, self-hosted video meetings for your team. No account, no tracking, no time limits.',
+        newMeeting:'New meeting', or:'or', roomPh:'Enter a room name', join:'Join',
+        suggest:'Suggest a name', enc:'End-to-end encrypted', self:'Self-hosted',
+        noacc:'No account needed', liveNow:'Live now', noLogs:'No logs kept', signIn:'Sign in' },
+  ru: { badge:'Открытый код и приватность', tagline:'Разговоры, которые остаются вашими.',
+        sub:'Зашифрованные видеовстречи на вашем сервере. Без аккаунта, слежки и ограничений по времени.',
+        newMeeting:'Новая встреча', or:'или', roomPh:'Название комнаты', join:'Войти',
+        suggest:'Предложить название', enc:'Сквозное шифрование', self:'Свой сервер',
+        noacc:'Без регистрации', liveNow:'В эфире', noLogs:'Без логов', signIn:'Войти' },
+  uz: { badge:'Ochiq kodli va maxfiy', tagline:'Suhbatlaringiz oʻzingizniki boʻlib qolsin.',
+        sub:'Jamoangiz uchun shifrlangan, oʻz serveringizdagi video uchrashuvlar. Hisobsiz, kuzatuvsiz, vaqt cheklovisiz.',
+        newMeeting:'Yangi uchrashuv', or:'yoki', roomPh:'Xona nomini kiriting', join:'Qoʻshilish',
+        suggest:'Nom taklif qilish', enc:'Uchdan-uchgacha shifrlangan', self:'Oʻz serveringizda',
+        noacc:'Hisob shart emas', liveNow:'Jonli efir', noLogs:'Loglar saqlanmaydi', signIn:'Kirish' },
+};
+
+let lang = (navigator.language || 'en').slice(0,2);
+if (!T[lang]) lang = 'en';
+let room = '';
+
+const ADJ = ['calm','swift','bright','quiet','warm','clever','bold','gentle','lucky','open'];
+const NOUN = ['eagle','river','cedar','harbor','meadow','falcon','summit','willow','ember','delta'];
+function suggestName(){
+  const r = a => a[Math.floor(Math.random()*a.length)];
+  return `${r(ADJ)}-${r(NOUN)}-${Math.floor(100+Math.random()*900)}`;
+}
+const check = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-11"/></svg>';
+
+function pill(code, label){
+  const active = lang === code;
+  const style = active
+    ? "background:#1a1813;color:#f4f1ea;border:none;border-radius:7px;padding:6px 11px;font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer"
+    : "background:none;color:#8a8270;border:none;border-radius:7px;padding:6px 11px;font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer";
+  return `<button data-lang="${code}" style="${style}">${label}</button>`;
+}
+
+function render(){
+  const t = T[lang];
+  document.documentElement.lang = lang;
+  document.getElementById('app').innerHTML = `
+<div style="min-height:100vh;background:#f4f1ea;color:#1a1813;display:flex;flex-direction:column">
+  <div style="display:flex;align-items:center;justify-content:space-between" class="anj-pad">
+    <div style="display:flex;align-items:center;gap:11px">
+      <div style="width:30px;height:30px;border-radius:9px;background:#1a1813;display:flex;align-items:center;justify-content:center;color:#f4f1ea;font-family:'Space Grotesk';font-weight:700;font-size:17px">A</div>
+      <span style="font-family:'Space Grotesk';font-weight:600;font-size:20px;letter-spacing:-.02em">Anjuman</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px">
+      <div style="display:flex;gap:2px;background:#e8e3d8;padding:3px;border-radius:9px">
+        ${pill('uz','UZ')}${pill('ru','RU')}${pill('en','EN')}
+      </div>
+      <button style="background:none;border:none;font-family:inherit;font-size:15px;font-weight:600;color:#1a1813;cursor:pointer;padding:8px 4px">${t.signIn}</button>
+    </div>
+  </div>
+
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px 40px 60px" class="anj-pad">
+    <div class="anj-hero">
+      <div>
+        <div style="display:inline-flex;align-items:center;gap:8px;background:#e8e3d8;padding:6px 12px;border-radius:99px;font-size:13px;font-weight:600;color:#6b6457;margin-bottom:26px">
+          <span style="width:7px;height:7px;border-radius:99px;background:#45c69b;display:inline-block"></span>${t.badge}
+        </div>
+        <h1 style="font-family:'Space Grotesk';font-weight:600;font-size:clamp(38px,5.2vw,60px);line-height:1.02;letter-spacing:-.03em;margin:0 0 18px">${t.tagline}</h1>
+        <p style="font-size:18px;line-height:1.55;color:#5c564a;margin:0 0 34px;max-width:430px">${t.sub}</p>
+
+        <div style="background:#fffdf8;border:1px solid #e6e0d3;border-radius:18px;padding:22px;box-shadow:0 10px 40px -18px rgba(60,50,30,.3);max-width:460px">
+          <button id="newMeeting" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#45c69b;color:#0e1f18;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;transition:.15s">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2.5 7.5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2z"/><path d="M15.5 10l5-3v10l-5-3"/><path d="M9 10v4M7 12h4"/></svg>
+            ${t.newMeeting}
+          </button>
+          <div style="display:flex;align-items:center;gap:12px;margin:16px 0;color:#a39a86;font-size:13px;font-weight:500"><div style="flex:1;height:1px;background:#e6e0d3"></div>${t.or}<div style="flex:1;height:1px;background:#e6e0d3"></div></div>
+          <div style="display:flex;gap:8px">
+            <div style="flex:1;display:flex;align-items:center;background:#f4f1ea;border:1px solid #e6e0d3;border-radius:11px;padding:0 12px">
+              <input id="room" value="${room.replace(/"/g,'&quot;')}" placeholder="${t.roomPh}" autocomplete="off" style="flex:1;background:none;border:none;outline:none;font-family:'Space Grotesk';font-size:15px;font-weight:500;color:#1a1813;padding:13px 0"/>
+              <button id="suggest" title="${t.suggest}" aria-label="${t.suggest}" style="background:none;border:none;cursor:pointer;color:#8a8270;display:flex;padding:4px">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6L6 18"/><circle cx="12" cy="12" r="3.2"/></svg>
+              </button>
+            </div>
+            <button id="joinBtn" style="background:#1a1813;color:#f4f1ea;border:none;border-radius:11px;padding:0 22px;font-size:15px;font-weight:600;cursor:pointer">${t.join}</button>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:22px;margin-top:28px">
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#5c564a"><span style="color:#45c69b;display:flex">${check}</span>${t.enc}</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#5c564a"><span style="color:#45c69b;display:flex">${check}</span>${t.self}</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#5c564a"><span style="color:#45c69b;display:flex">${check}</span>${t.noacc}</div>
+        </div>
+      </div>
+
+      <div class="anj-visual" style="position:relative">
+        <div style="background:#14130f;border-radius:22px;padding:14px;box-shadow:0 30px 70px -30px rgba(40,30,15,.5)">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px 12px">
+            <div style="display:flex;align-items:center;gap:7px;color:#9a9488;font-size:12px;font-weight:600;font-family:'Space Grotesk'"><span style="width:7px;height:7px;border-radius:99px;background:#d8674e;display:inline-block;animation:anjPulse 1.6s infinite"></span>${t.liveNow} · 24:18</div>
+            <div style="display:flex;gap:3px;align-items:flex-end;height:13px">
+              <span style="width:3px;height:5px;background:#45c69b;border-radius:2px"></span><span style="width:3px;height:8px;background:#45c69b;border-radius:2px"></span><span style="width:3px;height:11px;background:#45c69b;border-radius:2px"></span><span style="width:3px;height:13px;background:#3a3a34;border-radius:2px"></span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="aspect-ratio:4/3;border-radius:13px;background:linear-gradient(135deg,#b5654a,#8a4636);position:relative;display:flex;align-items:flex-end;padding:9px"><span style="font-family:'Space Grotesk';font-size:42px;font-weight:600;color:rgba(255,255,255,.16);position:absolute;top:8px;right:12px">DK</span><span style="font-size:11px;font-weight:600;color:#fff;background:rgba(20,19,15,.5);padding:3px 7px;border-radius:7px">Dilnoza</span></div>
+            <div style="aspect-ratio:4/3;border-radius:13px;background:linear-gradient(135deg,#4a7d6a,#365a4d);position:relative;display:flex;align-items:flex-end;padding:9px;outline:2px solid #45c69b"><span style="font-family:'Space Grotesk';font-size:42px;font-weight:600;color:rgba(255,255,255,.16);position:absolute;top:8px;right:12px">AR</span><span style="font-size:11px;font-weight:600;color:#fff;background:rgba(20,19,15,.5);padding:3px 7px;border-radius:7px">Aziz</span></div>
+            <div style="aspect-ratio:4/3;border-radius:13px;background:linear-gradient(135deg,#7a6aa8,#564a7a);position:relative;display:flex;align-items:flex-end;padding:9px"><span style="font-family:'Space Grotesk';font-size:42px;font-weight:600;color:rgba(255,255,255,.16);position:absolute;top:8px;right:12px">MY</span><span style="font-size:11px;font-weight:600;color:#fff;background:rgba(20,19,15,.5);padding:3px 7px;border-radius:7px">Madina</span></div>
+            <div style="aspect-ratio:4/3;border-radius:13px;background:#211f19;position:relative;display:flex;align-items:center;justify-content:center"><div style="width:46px;height:46px;border-radius:99px;background:#4a6a8a;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:600;color:#fff;font-size:17px">NT</div><span style="position:absolute;bottom:9px;left:9px;font-size:11px;font-weight:600;color:#fff;background:rgba(20,19,15,.5);padding:3px 7px;border-radius:7px">Nargiza</span></div>
+          </div>
+        </div>
+        <div style="position:absolute;bottom:-18px;left:-18px;background:#fffdf8;border:1px solid #e6e0d3;border-radius:14px;padding:12px 16px;box-shadow:0 14px 30px -12px rgba(40,30,15,.3);display:flex;align-items:center;gap:11px">
+          <div style="width:34px;height:34px;border-radius:10px;background:#0e1f18;display:flex;align-items:center;justify-content:center;color:#45c69b"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="9" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+          <div><div style="font-size:13px;font-weight:700;color:#1a1813">${t.enc}</div><div style="font-size:11px;color:#8a8270">AES-256 · ${t.noLogs}</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`;
+  wire();
+}
+
+function wire(){
+  document.querySelectorAll('[data-lang]').forEach(b =>
+    b.onclick = () => { lang = b.dataset.lang; render(); });
+  const roomInput = document.getElementById('room');
+  roomInput.oninput = e => { room = e.target.value; };
+  document.getElementById('suggest').onclick = () => { room = suggestName(); render(); document.getElementById('room').focus(); };
+  document.getElementById('newMeeting').onclick = () => startCall(room || suggestName());
+  document.getElementById('joinBtn').onclick = () => {
+    const r = (room || '').trim();
+    if (!r) { roomInput.focus(); return; }
+    startCall(r);
+  };
+  roomInput.onkeydown = e => { if (e.key === 'Enter' && room.trim()) startCall(room.trim()); };
+}
+
+// ---- real Jitsi call via External API -------------------------------------
+let externalApiLoaded = false;
+function loadExternalApi(){
+  return new Promise((resolve, reject) => {
+    if (externalApiLoaded && window.JitsiMeetExternalAPI) return resolve();
+    const s = document.createElement('script');
+    s.src = `https://${JITSI_DOMAIN}/external_api.js`;
+    s.onload = () => { externalApiLoaded = true; resolve(); };
+    s.onerror = () => reject(new Error('Failed to load Jitsi'));
+    document.head.appendChild(s);
+  });
+}
+
+let jitsiApi = null;
+async function startCall(rawRoom){
+  const overlay = document.getElementById('anj-call');
+  const msg = document.getElementById('anj-call-msg');
+  overlay.classList.add('open');
+  const roomName = ROOM_PREFIX + rawRoom.toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'');
+  try {
+    msg.textContent = 'Connecting…';
+    await loadExternalApi();
+    jitsiApi = new JitsiMeetExternalAPI(JITSI_DOMAIN, {
+      roomName,
+      parentNode: overlay,
+      width: '100%', height: '100%',
+      configOverwrite: { prejoinPageEnabled: true, disableThirdPartyRequests: true, defaultLanguage: lang },
+      interfaceConfigOverwrite: {
+        APP_NAME: 'Anjuman', NATIVE_APP_NAME: 'Anjuman',
+        SHOW_JITSI_WATERMARK: false, SHOW_WATERMARK_FOR_GUESTS: false,
+        DEFAULT_BACKGROUND: '#14130f', TOOLBAR_ALWAYS_VISIBLE: false,
+      },
+    });
+    jitsiApi.addListener('readyToClose', endCall);
+  } catch (e) {
+    msg.textContent = 'Could not connect. Please try again.';
+    setTimeout(endCall, 2500);
+  }
+}
+
+function endCall(){
+  if (jitsiApi) { try { jitsiApi.dispose(); } catch(_){} jitsiApi = null; }
+  const overlay = document.getElementById('anj-call');
+  overlay.classList.remove('open');
+  overlay.innerHTML = '<div class="anj-loading"><span class="anj-spin"></span><span id="anj-call-msg">Connecting…</span></div>';
+}
+
+render();
+</script>
+</body>
+</html>
