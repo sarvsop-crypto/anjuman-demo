@@ -253,7 +253,8 @@ async function startCall(){
     jitsiApi=new JitsiMeetExternalAPI(JITSI_DOMAIN,{
       roomName, parentNode:ov, width:'100%', height:'100%',
       userInfo:{ displayName: displayName||'' },
-      configOverwrite:{ prejoinPageEnabled:false, disableThirdPartyRequests:true, defaultLanguage:lang,
+      configOverwrite:{ prejoinConfig:{ enabled:false }, prejoinPageEnabled:false,
+        disableThirdPartyRequests:true, defaultLanguage:lang,
         startWithAudioMuted:!micOn, startWithVideoMuted:!camOn, disableDeepLinking:true },
       interfaceConfigOverwrite:{ APP_NAME:'Anjuman', NATIVE_APP_NAME:'Anjuman', PROVIDER_NAME:'Anjuman',
         SHOW_JITSI_WATERMARK:false, SHOW_WATERMARK_FOR_GUESTS:false, SHOW_BRAND_WATERMARK:false,
