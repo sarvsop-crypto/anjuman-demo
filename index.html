@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Anjuman — secure video meetings</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Self-hosted fonts (sovereign: no Google third-party request, works under strict CSP) -->
+<link rel="stylesheet" href="fonts.css">
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;height:100%}
@@ -48,12 +47,11 @@
 // JITSI_DOMAIN: meet.jit.si for the public demo; swap to the self-hosted
 // Anjuman host (ministry tunnel) to drop all third-party prompts. One line.
 // =============================================================================
-// Our self-hosted Anjuman Jitsi. When this page is served FROM the Jitsi host
-// itself (same origin, e.g. https://ai-test.tail028ad2.ts.net/app/) we use that
-// origin so the call loads same-origin — no cross-origin / browser
-// private-network-access block. Falls back to the ts.net host otherwise.
-const JITSI_DOMAIN = (location.protocol === 'https:' && location.host && !location.host.includes('github'))
-  ? location.host : 'ai-test.tail028ad2.ts.net';
+// Our self-hosted Anjuman Jitsi. Served same-origin at ts.net/app/ -> use that
+// host (no cross-origin / private-network block). Anywhere else (Capacitor
+// localhost, the github demo, file://) -> the canonical ts.net host.
+const JITSI_HOST_DEFAULT = 'ai-test.tail028ad2.ts.net';
+const JITSI_DOMAIN = location.host.endsWith('.ts.net') ? location.host : JITSI_HOST_DEFAULT;
 const ROOM_PREFIX  = 'anjuman-';
 
 const T = {
