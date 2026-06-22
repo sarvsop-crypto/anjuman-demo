@@ -17,10 +17,10 @@
   @keyframes anjPulse{0%,100%{opacity:.55}50%{opacity:1}}
   @keyframes anjSpin{to{transform:rotate(360deg)}}
   .anj-pad{padding:22px 40px}
-  .anj-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:64px;max-width:1140px;width:100%;align-items:center}
+  .anj-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:64px;max-width:1140px;width:100%;align-items:center;min-width:0}
   .anj-prejoin{display:grid;grid-template-columns:1.1fr .9fr;gap:32px;max-width:980px;width:100%}
   @media (max-width:860px){
-    .anj-hero{grid-template-columns:1fr !important;gap:32px !important}
+    .anj-hero{grid-template-columns:minmax(0,1fr) !important;gap:32px !important;min-width:0 !important}
     .anj-visual{display:none !important}
     .anj-prejoin{grid-template-columns:1fr !important}
     .anj-pad{padding:20px !important}
@@ -31,7 +31,7 @@
   .anj-spin{width:18px;height:18px;border:2px solid #45c69b;border-top-color:transparent;border-radius:99px;animation:anjSpin 1s linear infinite}
   .anj-input{flex:1;background:#14130f;border:1px solid #34322a;border-radius:11px;outline:none;font-size:15px;color:#f2efe6;padding:13px 14px}
   .anj-input:focus{border-color:#45c69b}
-  .anj-sel{background:#14130f;border:1px solid #34322a;border-radius:10px;color:#cfc9bb;padding:9px 10px;font-size:13px;width:100%}
+  .anj-sel{background:#14130f;border:1px solid #34322a;border-radius:10px;color:#cfc9bb;padding:11px 10px;font-size:13px;width:100%}
 </style>
 </head>
 <body>
@@ -74,15 +74,15 @@ const check='<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke=
 // ----------------------------------------------------------------- WELCOME
 function pill(code,label){
   const a=lang===code;
-  const s=a?"background:#1a1813;color:#f4f1ea;border:none;border-radius:7px;padding:6px 11px;font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer"
-           :"background:none;color:#8a8270;border:none;border-radius:7px;padding:6px 11px;font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer";
+  const s=a?"background:#1a1813;color:#f4f1ea;border:none;border-radius:7px;padding:10px 11px;font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer"
+           :"background:none;color:#8a8270;border:none;border-radius:7px;padding:10px 11px;font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer";
   return `<button data-lang="${code}" style="${s}">${label}</button>`;
 }
 function renderWelcome(){
   const x=t();
   document.getElementById('app').innerHTML=`
 <div style="min-height:100vh;background:#f4f1ea;color:#1a1813;display:flex;flex-direction:column">
-  <div style="display:flex;align-items:center;justify-content:space-between" class="anj-pad">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px" class="anj-pad">
     <div style="display:flex;align-items:center;gap:11px">
       <div style="width:30px;height:30px;border-radius:9px;background:#1a1813;display:flex;align-items:center;justify-content:center;color:#f4f1ea;font-family:'Space Grotesk';font-weight:700;font-size:17px">A</div>
       <span style="font-family:'Space Grotesk';font-weight:600;font-size:20px;letter-spacing:-.02em">Anjuman</span>
@@ -96,16 +96,16 @@ function renderWelcome(){
     <div class="anj-hero">
       <div>
         <div style="display:inline-flex;align-items:center;gap:8px;background:#e8e3d8;padding:6px 12px;border-radius:99px;font-size:13px;font-weight:600;color:#6b6457;margin-bottom:26px"><span style="width:7px;height:7px;border-radius:99px;background:#45c69b"></span>${x.badge}</div>
-        <h1 style="font-family:'Space Grotesk';font-weight:600;font-size:clamp(38px,5.2vw,60px);line-height:1.02;letter-spacing:-.03em;margin:0 0 18px">${x.tagline}</h1>
+        <h1 style="font-family:'Space Grotesk';font-weight:600;font-size:clamp(30px,6vw,60px);line-height:1.04;letter-spacing:-.03em;margin:0 0 18px;overflow-wrap:anywhere">${x.tagline}</h1>
         <p style="font-size:18px;line-height:1.55;color:#5c564a;margin:0 0 34px;max-width:430px">${x.sub}</p>
         <div style="background:#fffdf8;border:1px solid #e6e0d3;border-radius:18px;padding:22px;box-shadow:0 10px 40px -18px rgba(60,50,30,.3);max-width:460px">
           <button id="newMeeting" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#45c69b;color:#0e1f18;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;cursor:pointer">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2.5 7.5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2z"/><path d="M15.5 10l5-3v10l-5-3"/><path d="M9 10v4M7 12h4"/></svg>${x.newMeeting}</button>
           <div style="display:flex;align-items:center;gap:12px;margin:16px 0;color:#a39a86;font-size:13px"><div style="flex:1;height:1px;background:#e6e0d3"></div>${x.or}<div style="flex:1;height:1px;background:#e6e0d3"></div></div>
           <div style="display:flex;gap:8px">
-            <div style="flex:1;display:flex;align-items:center;background:#f4f1ea;border:1px solid #e6e0d3;border-radius:11px;padding:0 12px">
-              <input id="room" value="${esc(room)}" placeholder="${x.roomPh}" autocomplete="off" style="flex:1;background:none;border:none;outline:none;font-family:'Space Grotesk';font-size:15px;font-weight:500;color:#1a1813;padding:13px 0"/>
-              <button id="suggest" title="${x.suggest}" aria-label="${x.suggest}" style="background:none;border:none;cursor:pointer;color:#8a8270;display:flex;padding:4px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6L6 18"/><circle cx="12" cy="12" r="3.2"/></svg></button>
+            <div style="flex:1;min-width:0;display:flex;align-items:center;background:#f4f1ea;border:1px solid #e6e0d3;border-radius:11px;padding:0 12px">
+              <input id="room" value="${esc(room)}" placeholder="${x.roomPh}" autocomplete="off" style="flex:1;min-width:0;background:none;border:none;outline:none;font-family:'Space Grotesk';font-size:15px;font-weight:500;color:#1a1813;padding:13px 0"/>
+              <button id="suggest" title="${x.suggest}" aria-label="${x.suggest}" style="background:none;border:none;cursor:pointer;color:#8a8270;display:flex;align-items:center;justify-content:center;width:40px;height:40px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6L6 18"/><circle cx="12" cy="12" r="3.2"/></svg></button>
             </div>
             <button id="joinBtn" style="background:#1a1813;color:#f4f1ea;border:none;border-radius:11px;padding:0 22px;font-size:15px;font-weight:600;cursor:pointer">${x.join}</button>
           </div>
@@ -149,8 +149,8 @@ function renderPrejoin(){
   const x=t();
   document.getElementById('app').innerHTML=`
 <div style="min-height:100vh;display:flex;flex-direction:column;background:#14130f">
-  <div style="display:flex;align-items:center;justify-content:space-between" class="anj-pad">
-    <button id="back" style="display:flex;align-items:center;gap:8px;background:none;border:none;color:#9a9488;font-size:14px;font-weight:600;cursor:pointer;padding:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>${x.back}</button>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px" class="anj-pad">
+    <button id="back" style="display:flex;align-items:center;gap:8px;background:none;border:none;color:#9a9488;font-size:14px;font-weight:600;cursor:pointer;padding:10px 12px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>${x.back}</button>
     <div style="display:flex;align-items:center;gap:9px"><div style="width:26px;height:26px;border-radius:8px;background:#f4f1ea;display:flex;align-items:center;justify-content:center;color:#14130f;font-family:'Space Grotesk';font-weight:700;font-size:15px">A</div><span style="font-family:'Space Grotesk';font-weight:600;font-size:17px">Anjuman</span></div>
   </div>
   <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 40px 50px" class="anj-pad">
@@ -291,7 +291,7 @@ function renderPost(secs){
       <button id="home" style="flex:1;background:#2a2820;color:#f2efe6;border:none;border-radius:11px;padding:13px;font-size:15px;font-weight:600;cursor:pointer">${x.backHome}</button>
     </div>
     <div style="font-size:13px;color:#9a9488;margin-bottom:10px">${x.rateTitle}</div>
-    <div id="stars" style="display:flex;gap:6px;justify-content:center">${[1,2,3,4,5].map(n=>`<button data-star="${n}" style="background:none;border:none;cursor:pointer;color:#3a3a34;padding:2px"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.8.6-5.1 4.5 1.5 6.7L12 17.3 5.9 20.6l1.5-6.7L2.3 8.9l6.8-.6z"/></svg></button>`).join('')}</div>
+    <div id="stars" style="display:flex;gap:6px;justify-content:center">${[1,2,3,4,5].map(n=>`<button data-star="${n}" style="background:none;border:none;cursor:pointer;color:#3a3a34;padding:7px;display:inline-flex"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.8.6-5.1 4.5 1.5 6.7L12 17.3 5.9 20.6l1.5-6.7L2.3 8.9l6.8-.6z"/></svg></button>`).join('')}</div>
     <div id="thx" style="font-size:12px;color:#45c69b;margin-top:10px;height:14px"></div>
   </div>
 </div>`;
