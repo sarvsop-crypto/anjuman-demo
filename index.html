@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Anjuman — secure video meetings</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <!-- Self-hosted fonts (sovereign: no Google third-party request, works under strict CSP) -->
 <link rel="stylesheet" href="fonts.css">
 <style>
   *{box-sizing:border-box}
+  /* No double-tap / pinch zoom anywhere (esp. the UZ/RU/EN pills) */
+  html{touch-action:manipulation;-webkit-text-size-adjust:100%}
   /* Kill WKWebView rubber-band/overscroll for good: body is FIXED to the viewport
      (so the document itself can never scroll/bounce); #app is the only scroller,
      and only when content truly overflows. */
@@ -20,7 +22,7 @@
      Padding is inside each screen so its background still fills the inset zones. */
   #app > div{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);
              padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
-  button{font-family:inherit}
+  button{font-family:inherit;touch-action:manipulation}
   input,select{font-family:inherit}
   @keyframes anjPulse{0%,100%{opacity:.55}50%{opacity:1}}
   @keyframes anjSpin{to{transform:rotate(360deg)}}
@@ -47,7 +49,7 @@
 <div id="app"></div>
 <div id="anj-call"><div class="anj-loading"><span class="anj-spin"></span><span id="anj-call-msg">Connecting…</span></div></div>
 <!-- temporary build marker so we can confirm a fresh install on device -->
-<div id="bmark" style="position:fixed;bottom:3px;right:7px;font-size:9px;color:rgba(120,120,120,.6);z-index:1;pointer-events:none;font-family:monospace">b3</div>
+<div id="bmark" style="position:fixed;bottom:3px;right:7px;font-size:9px;color:rgba(120,120,120,.6);z-index:1;pointer-events:none;font-family:monospace">b4</div>
 
 <script>
 // =============================================================================
