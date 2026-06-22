@@ -10,87 +10,75 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
-  body{font-family:'Hanken Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased;background:#14130f}
+  html,body{margin:0;padding:0;height:100%}
+  body{font-family:'Hanken Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased;background:#14130f;color:#f2efe6}
   button{font-family:inherit}
+  input,select{font-family:inherit}
   @keyframes anjPulse{0%,100%{opacity:.55}50%{opacity:1}}
+  @keyframes anjSpin{to{transform:rotate(360deg)}}
   .anj-pad{padding:22px 40px}
   .anj-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:64px;max-width:1140px;width:100%;align-items:center}
-  @media (max-width:820px){
+  .anj-prejoin{display:grid;grid-template-columns:1.1fr .9fr;gap:32px;max-width:980px;width:100%}
+  @media (max-width:860px){
     .anj-hero{grid-template-columns:1fr !important;gap:32px !important}
     .anj-visual{display:none !important}
+    .anj-prejoin{grid-template-columns:1fr !important}
     .anj-pad{padding:20px !important}
   }
-  /* call overlay */
   #anj-call{position:fixed;inset:0;z-index:50;background:#14130f;display:none}
   #anj-call.open{display:block}
-  #anj-call .frame{width:100%;height:100%}
   .anj-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f2efe6;font-family:'Space Grotesk';font-size:15px;gap:10px}
   .anj-spin{width:18px;height:18px;border:2px solid #45c69b;border-top-color:transparent;border-radius:99px;animation:anjSpin 1s linear infinite}
-  @keyframes anjSpin{to{transform:rotate(360deg)}}
+  .anj-input{flex:1;background:#14130f;border:1px solid #34322a;border-radius:11px;outline:none;font-size:15px;color:#f2efe6;padding:13px 14px}
+  .anj-input:focus{border-color:#45c69b}
+  .anj-sel{background:#14130f;border:1px solid #34322a;border-radius:10px;color:#cfc9bb;padding:9px 10px;font-size:13px;width:100%}
 </style>
 </head>
 <body>
 
 <div id="app"></div>
-
-<!-- real Jitsi call mounts here -->
 <div id="anj-call"><div class="anj-loading"><span class="anj-spin"></span><span id="anj-call-msg">Connecting…</span></div></div>
 
 <script>
 // =============================================================================
-// Anjuman MVP frontend — welcome screen (ported 1:1 from the Claude design) +
-// a REAL Jitsi call launched via the Jitsi External API (iframe).
+// Anjuman frontend — full branded flow: welcome -> pre-join (real device check)
+// -> Jitsi call (branded) -> post-call. Ported from the Claude design, i18n
+// UZ/RU/EN. No build step. Call engine via Jitsi External API.
 //
-// CALL ENGINE: meet.jit.si for the demo (works instantly, no backend deploy).
-// Swap JITSI_DOMAIN to your self-hosted Anjuman domain when it's live — that's
-// the only line that changes to make calls run on your own server.
+// JITSI_DOMAIN: meet.jit.si for the public demo; swap to the self-hosted
+// Anjuman host (ministry tunnel) to drop all third-party prompts. One line.
 // =============================================================================
-const JITSI_DOMAIN = 'meet.jit.si';     // <- swap to 'meet.anjuman.uz' when self-hosted
-const ROOM_PREFIX  = 'anjuman-';        // namespace rooms on the shared public server
+const JITSI_DOMAIN = 'meet.jit.si';
+const ROOM_PREFIX  = 'anjuman-';
 
 const T = {
-  en: { badge:'Open-source & private', tagline:'Conversations that stay yours.',
-        sub:'Encrypted, self-hosted video meetings for your team. No account, no tracking, no time limits.',
-        newMeeting:'New meeting', or:'or', roomPh:'Enter a room name', join:'Join',
-        suggest:'Suggest a name', enc:'End-to-end encrypted', self:'Self-hosted',
-        noacc:'No account needed', liveNow:'Live now', noLogs:'No logs kept', signIn:'Sign in' },
-  ru: { badge:'Открытый код и приватность', tagline:'Разговоры, которые остаются вашими.',
-        sub:'Зашифрованные видеовстречи на вашем сервере. Без аккаунта, слежки и ограничений по времени.',
-        newMeeting:'Новая встреча', or:'или', roomPh:'Название комнаты', join:'Войти',
-        suggest:'Предложить название', enc:'Сквозное шифрование', self:'Свой сервер',
-        noacc:'Без регистрации', liveNow:'В эфире', noLogs:'Без логов', signIn:'Войти' },
-  uz: { badge:'Ochiq kodli va maxfiy', tagline:'Suhbatlaringiz oʻzingizniki boʻlib qolsin.',
-        sub:'Jamoangiz uchun shifrlangan, oʻz serveringizdagi video uchrashuvlar. Hisobsiz, kuzatuvsiz, vaqt cheklovisiz.',
-        newMeeting:'Yangi uchrashuv', or:'yoki', roomPh:'Xona nomini kiriting', join:'Qoʻshilish',
-        suggest:'Nom taklif qilish', enc:'Uchdan-uchgacha shifrlangan', self:'Oʻz serveringizda',
-        noacc:'Hisob shart emas', liveNow:'Jonli efir', noLogs:'Loglar saqlanmaydi', signIn:'Kirish' },
+  en:{signIn:"Sign in",badge:"Open-source & private",tagline:"Conversations that stay yours.",sub:"Encrypted, self-hosted video meetings for your team. No account, no tracking, no time limits.",newMeeting:"New meeting",or:"or",join:"Join",roomPh:"Enter a room name",suggest:"Suggest a name",enc:"End-to-end encrypted",self:"Self-hosted",noacc:"No account needed",liveNow:"Live now",noLogs:"No logs kept",back:"Back",youreJoining:"You're joining",yourName:"Your name",namePh:"Type your name",camera:"Camera",mic:"Microphone",speaker:"Speaker",joinNow:"Join now",knock:"Ask host to let me in instead",cameraOff:"Camera is off",muted:"Muted",lobbyTitle:"You're in the waiting room",lobbyBody:"The host will let you in shortly. Hang tight.",cancel:"Cancel",host:"Host",leftTitle:"You left the meeting",duration:"Duration",rejoin:"Rejoin",backHome:"Back to home",rateTitle:"How was the call quality?",poor:"Poor",great:"Excellent",thanks:"Thanks for your feedback"},
+  ru:{signIn:"Войти",badge:"Открытый код и приватность",tagline:"Разговоры, которые остаются вашими.",sub:"Зашифрованные видеовстречи на вашем сервере. Без аккаунта, слежки и ограничений по времени.",newMeeting:"Новая встреча",or:"или",join:"Войти",roomPh:"Название комнаты",suggest:"Предложить название",enc:"Сквозное шифрование",self:"Свой сервер",noacc:"Без регистрации",liveNow:"В эфире",noLogs:"Без логов",back:"Назад",youreJoining:"Вы входите в",yourName:"Ваше имя",namePh:"Введите имя",camera:"Камера",mic:"Микрофон",speaker:"Динамик",joinNow:"Войти",knock:"Попросить хоста впустить меня",cameraOff:"Камера выключена",muted:"Без звука",lobbyTitle:"Вы в комнате ожидания",lobbyBody:"Хост скоро вас впустит. Подождите немного.",cancel:"Отмена",host:"Хост",leftTitle:"Вы покинули встречу",duration:"Длительность",rejoin:"Вернуться",backHome:"На главную",rateTitle:"Как качество связи?",poor:"Плохо",great:"Отлично",thanks:"Спасибо за отзыв"},
+  uz:{signIn:"Kirish",badge:"Ochiq kodli va maxfiy",tagline:"Suhbatlaringiz oʻzingizniki boʻlib qolsin.",sub:"Jamoangiz uchun shifrlangan, oʻz serveringizdagi video uchrashuvlar. Hisobsiz, kuzatuvsiz, vaqt cheklovisiz.",newMeeting:"Yangi uchrashuv",or:"yoki",join:"Qoʻshilish",roomPh:"Xona nomini kiriting",suggest:"Nom taklif qilish",enc:"Uchdan-uchgacha shifrlangan",self:"Oʻz serveringizda",noacc:"Hisob shart emas",liveNow:"Jonli efir",noLogs:"Loglar saqlanmaydi",back:"Orqaga",youreJoining:"Siz qoʻshilyapsiz",yourName:"Ismingiz",namePh:"Ismingizni kiriting",camera:"Kamera",mic:"Mikrofon",speaker:"Karnay",joinNow:"Qoʻshilish",knock:"Hostdan kiritishini soʻrash",cameraOff:"Kamera oʻchiq",muted:"Ovozsiz",lobbyTitle:"Siz kutish xonasidasiz",lobbyBody:"Host sizni tez orada kiritadi. Biroz kuting.",cancel:"Bekor qilish",host:"Host",leftTitle:"Siz uchrashuvni tark etdingiz",duration:"Davomiyligi",rejoin:"Qayta kirish",backHome:"Bosh sahifa",rateTitle:"Aloqa sifati qanday edi?",poor:"Yomon",great:"Aʼlo",thanks:"Fikringiz uchun rahmat"},
 };
 
-let lang = (navigator.language || 'en').slice(0,2);
-if (!T[lang]) lang = 'en';
-let room = '';
+let lang = (navigator.language||'en').slice(0,2); if(!T[lang]) lang='en';
+let room='', displayName='', camOn=true, micOn=true;
+let previewStream=null, audioCtx=null, rafId=null, jitsiApi=null, callStart=0;
+const t = () => T[lang];
+const esc = s => (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const initials = n => (n||'').trim().split(/\s+/).map(w=>w[0]||'').slice(0,2).join('').toUpperCase() || '🙂';
 
-const ADJ = ['calm','swift','bright','quiet','warm','clever','bold','gentle','lucky','open'];
-const NOUN = ['eagle','river','cedar','harbor','meadow','falcon','summit','willow','ember','delta'];
-function suggestName(){
-  const r = a => a[Math.floor(Math.random()*a.length)];
-  return `${r(ADJ)}-${r(NOUN)}-${Math.floor(100+Math.random()*900)}`;
+const ADJ=['calm','swift','bright','quiet','warm','clever','bold','gentle','lucky','open'];
+const NOUN=['eagle','river','cedar','harbor','meadow','falcon','summit','willow','ember','delta'];
+const suggestName=()=>{const r=a=>a[Math.floor(Math.random()*a.length)];return `${r(ADJ)}-${r(NOUN)}-${Math.floor(100+Math.random()*900)}`;};
+const check='<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-11"/></svg>';
+
+// ----------------------------------------------------------------- WELCOME
+function pill(code,label){
+  const a=lang===code;
+  const s=a?"background:#1a1813;color:#f4f1ea;border:none;border-radius:7px;padding:6px 11px;font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer"
+           :"background:none;color:#8a8270;border:none;border-radius:7px;padding:6px 11px;font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer";
+  return `<button data-lang="${code}" style="${s}">${label}</button>`;
 }
-const check = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-11"/></svg>';
-
-function pill(code, label){
-  const active = lang === code;
-  const style = active
-    ? "background:#1a1813;color:#f4f1ea;border:none;border-radius:7px;padding:6px 11px;font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer"
-    : "background:none;color:#8a8270;border:none;border-radius:7px;padding:6px 11px;font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer";
-  return `<button data-lang="${code}" style="${style}">${label}</button>`;
-}
-
-function render(){
-  const t = T[lang];
-  document.documentElement.lang = lang;
-  document.getElementById('app').innerHTML = `
+function renderWelcome(){
+  const x=t();
+  document.getElementById('app').innerHTML=`
 <div style="min-height:100vh;background:#f4f1ea;color:#1a1813;display:flex;flex-direction:column">
   <div style="display:flex;align-items:center;justify-content:space-between" class="anj-pad">
     <div style="display:flex;align-items:center;gap:11px">
@@ -98,135 +86,231 @@ function render(){
       <span style="font-family:'Space Grotesk';font-weight:600;font-size:20px;letter-spacing:-.02em">Anjuman</span>
     </div>
     <div style="display:flex;align-items:center;gap:18px">
-      <div style="display:flex;gap:2px;background:#e8e3d8;padding:3px;border-radius:9px">
-        ${pill('uz','UZ')}${pill('ru','RU')}${pill('en','EN')}
-      </div>
-      <button style="background:none;border:none;font-family:inherit;font-size:15px;font-weight:600;color:#1a1813;cursor:pointer;padding:8px 4px">${t.signIn}</button>
+      <div style="display:flex;gap:2px;background:#e8e3d8;padding:3px;border-radius:9px">${pill('uz','UZ')}${pill('ru','RU')}${pill('en','EN')}</div>
+      <button style="background:none;border:none;font-size:15px;font-weight:600;color:#1a1813;cursor:pointer;padding:8px 4px">${x.signIn}</button>
     </div>
   </div>
-
   <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px 40px 60px" class="anj-pad">
     <div class="anj-hero">
       <div>
-        <div style="display:inline-flex;align-items:center;gap:8px;background:#e8e3d8;padding:6px 12px;border-radius:99px;font-size:13px;font-weight:600;color:#6b6457;margin-bottom:26px">
-          <span style="width:7px;height:7px;border-radius:99px;background:#45c69b;display:inline-block"></span>${t.badge}
-        </div>
-        <h1 style="font-family:'Space Grotesk';font-weight:600;font-size:clamp(38px,5.2vw,60px);line-height:1.02;letter-spacing:-.03em;margin:0 0 18px">${t.tagline}</h1>
-        <p style="font-size:18px;line-height:1.55;color:#5c564a;margin:0 0 34px;max-width:430px">${t.sub}</p>
-
+        <div style="display:inline-flex;align-items:center;gap:8px;background:#e8e3d8;padding:6px 12px;border-radius:99px;font-size:13px;font-weight:600;color:#6b6457;margin-bottom:26px"><span style="width:7px;height:7px;border-radius:99px;background:#45c69b"></span>${x.badge}</div>
+        <h1 style="font-family:'Space Grotesk';font-weight:600;font-size:clamp(38px,5.2vw,60px);line-height:1.02;letter-spacing:-.03em;margin:0 0 18px">${x.tagline}</h1>
+        <p style="font-size:18px;line-height:1.55;color:#5c564a;margin:0 0 34px;max-width:430px">${x.sub}</p>
         <div style="background:#fffdf8;border:1px solid #e6e0d3;border-radius:18px;padding:22px;box-shadow:0 10px 40px -18px rgba(60,50,30,.3);max-width:460px">
-          <button id="newMeeting" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#45c69b;color:#0e1f18;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;transition:.15s">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2.5 7.5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2z"/><path d="M15.5 10l5-3v10l-5-3"/><path d="M9 10v4M7 12h4"/></svg>
-            ${t.newMeeting}
-          </button>
-          <div style="display:flex;align-items:center;gap:12px;margin:16px 0;color:#a39a86;font-size:13px;font-weight:500"><div style="flex:1;height:1px;background:#e6e0d3"></div>${t.or}<div style="flex:1;height:1px;background:#e6e0d3"></div></div>
+          <button id="newMeeting" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#45c69b;color:#0e1f18;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;cursor:pointer">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2.5 7.5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2z"/><path d="M15.5 10l5-3v10l-5-3"/><path d="M9 10v4M7 12h4"/></svg>${x.newMeeting}</button>
+          <div style="display:flex;align-items:center;gap:12px;margin:16px 0;color:#a39a86;font-size:13px"><div style="flex:1;height:1px;background:#e6e0d3"></div>${x.or}<div style="flex:1;height:1px;background:#e6e0d3"></div></div>
           <div style="display:flex;gap:8px">
             <div style="flex:1;display:flex;align-items:center;background:#f4f1ea;border:1px solid #e6e0d3;border-radius:11px;padding:0 12px">
-              <input id="room" value="${room.replace(/"/g,'&quot;')}" placeholder="${t.roomPh}" autocomplete="off" style="flex:1;background:none;border:none;outline:none;font-family:'Space Grotesk';font-size:15px;font-weight:500;color:#1a1813;padding:13px 0"/>
-              <button id="suggest" title="${t.suggest}" aria-label="${t.suggest}" style="background:none;border:none;cursor:pointer;color:#8a8270;display:flex;padding:4px">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6L6 18"/><circle cx="12" cy="12" r="3.2"/></svg>
-              </button>
+              <input id="room" value="${esc(room)}" placeholder="${x.roomPh}" autocomplete="off" style="flex:1;background:none;border:none;outline:none;font-family:'Space Grotesk';font-size:15px;font-weight:500;color:#1a1813;padding:13px 0"/>
+              <button id="suggest" title="${x.suggest}" aria-label="${x.suggest}" style="background:none;border:none;cursor:pointer;color:#8a8270;display:flex;padding:4px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6L6 18"/><circle cx="12" cy="12" r="3.2"/></svg></button>
             </div>
-            <button id="joinBtn" style="background:#1a1813;color:#f4f1ea;border:none;border-radius:11px;padding:0 22px;font-size:15px;font-weight:600;cursor:pointer">${t.join}</button>
+            <button id="joinBtn" style="background:#1a1813;color:#f4f1ea;border:none;border-radius:11px;padding:0 22px;font-size:15px;font-weight:600;cursor:pointer">${x.join}</button>
           </div>
         </div>
-
         <div style="display:flex;flex-wrap:wrap;gap:22px;margin-top:28px">
-          <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#5c564a"><span style="color:#45c69b;display:flex">${check}</span>${t.enc}</div>
-          <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#5c564a"><span style="color:#45c69b;display:flex">${check}</span>${t.self}</div>
-          <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#5c564a"><span style="color:#45c69b;display:flex">${check}</span>${t.noacc}</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#5c564a"><span style="color:#45c69b;display:flex">${check}</span>${x.enc}</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#5c564a"><span style="color:#45c69b;display:flex">${check}</span>${x.self}</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#5c564a"><span style="color:#45c69b;display:flex">${check}</span>${x.noacc}</div>
         </div>
       </div>
-
       <div class="anj-visual" style="position:relative">
         <div style="background:#14130f;border-radius:22px;padding:14px;box-shadow:0 30px 70px -30px rgba(40,30,15,.5)">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px 12px">
-            <div style="display:flex;align-items:center;gap:7px;color:#9a9488;font-size:12px;font-weight:600;font-family:'Space Grotesk'"><span style="width:7px;height:7px;border-radius:99px;background:#d8674e;display:inline-block;animation:anjPulse 1.6s infinite"></span>${t.liveNow} · 24:18</div>
-            <div style="display:flex;gap:3px;align-items:flex-end;height:13px">
-              <span style="width:3px;height:5px;background:#45c69b;border-radius:2px"></span><span style="width:3px;height:8px;background:#45c69b;border-radius:2px"></span><span style="width:3px;height:11px;background:#45c69b;border-radius:2px"></span><span style="width:3px;height:13px;background:#3a3a34;border-radius:2px"></span>
-            </div>
+            <div style="display:flex;align-items:center;gap:7px;color:#9a9488;font-size:12px;font-weight:600;font-family:'Space Grotesk'"><span style="width:7px;height:7px;border-radius:99px;background:#d8674e;animation:anjPulse 1.6s infinite"></span>${x.liveNow} · 24:18</div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div style="aspect-ratio:4/3;border-radius:13px;background:linear-gradient(135deg,#b5654a,#8a4636);position:relative;display:flex;align-items:flex-end;padding:9px"><span style="font-family:'Space Grotesk';font-size:42px;font-weight:600;color:rgba(255,255,255,.16);position:absolute;top:8px;right:12px">DK</span><span style="font-size:11px;font-weight:600;color:#fff;background:rgba(20,19,15,.5);padding:3px 7px;border-radius:7px">Dilnoza</span></div>
-            <div style="aspect-ratio:4/3;border-radius:13px;background:linear-gradient(135deg,#4a7d6a,#365a4d);position:relative;display:flex;align-items:flex-end;padding:9px;outline:2px solid #45c69b"><span style="font-family:'Space Grotesk';font-size:42px;font-weight:600;color:rgba(255,255,255,.16);position:absolute;top:8px;right:12px">AR</span><span style="font-size:11px;font-weight:600;color:#fff;background:rgba(20,19,15,.5);padding:3px 7px;border-radius:7px">Aziz</span></div>
-            <div style="aspect-ratio:4/3;border-radius:13px;background:linear-gradient(135deg,#7a6aa8,#564a7a);position:relative;display:flex;align-items:flex-end;padding:9px"><span style="font-family:'Space Grotesk';font-size:42px;font-weight:600;color:rgba(255,255,255,.16);position:absolute;top:8px;right:12px">MY</span><span style="font-size:11px;font-weight:600;color:#fff;background:rgba(20,19,15,.5);padding:3px 7px;border-radius:7px">Madina</span></div>
-            <div style="aspect-ratio:4/3;border-radius:13px;background:#211f19;position:relative;display:flex;align-items:center;justify-content:center"><div style="width:46px;height:46px;border-radius:99px;background:#4a6a8a;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:600;color:#fff;font-size:17px">NT</div><span style="position:absolute;bottom:9px;left:9px;font-size:11px;font-weight:600;color:#fff;background:rgba(20,19,15,.5);padding:3px 7px;border-radius:7px">Nargiza</span></div>
+            <div style="aspect-ratio:4/3;border-radius:13px;background:linear-gradient(135deg,#b5654a,#8a4636);display:flex;align-items:flex-end;padding:9px"><span style="font-size:11px;font-weight:600;color:#fff;background:rgba(20,19,15,.5);padding:3px 7px;border-radius:7px">Dilnoza</span></div>
+            <div style="aspect-ratio:4/3;border-radius:13px;background:linear-gradient(135deg,#4a7d6a,#365a4d);display:flex;align-items:flex-end;padding:9px;outline:2px solid #45c69b"><span style="font-size:11px;font-weight:600;color:#fff;background:rgba(20,19,15,.5);padding:3px 7px;border-radius:7px">Aziz</span></div>
+            <div style="aspect-ratio:4/3;border-radius:13px;background:linear-gradient(135deg,#7a6aa8,#564a7a);display:flex;align-items:flex-end;padding:9px"><span style="font-size:11px;font-weight:600;color:#fff;background:rgba(20,19,15,.5);padding:3px 7px;border-radius:7px">Madina</span></div>
+            <div style="aspect-ratio:4/3;border-radius:13px;background:#211f19;display:flex;align-items:center;justify-content:center"><div style="width:46px;height:46px;border-radius:99px;background:#4a6a8a;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:600;color:#fff">NT</div></div>
           </div>
         </div>
         <div style="position:absolute;bottom:-18px;left:-18px;background:#fffdf8;border:1px solid #e6e0d3;border-radius:14px;padding:12px 16px;box-shadow:0 14px 30px -12px rgba(40,30,15,.3);display:flex;align-items:center;gap:11px">
           <div style="width:34px;height:34px;border-radius:10px;background:#0e1f18;display:flex;align-items:center;justify-content:center;color:#45c69b"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="9" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
-          <div><div style="font-size:13px;font-weight:700;color:#1a1813">${t.enc}</div><div style="font-size:11px;color:#8a8270">AES-256 · ${t.noLogs}</div></div>
+          <div><div style="font-size:13px;font-weight:700;color:#1a1813">${x.enc}</div><div style="font-size:11px;color:#8a8270">AES-256 · ${x.noLogs}</div></div>
         </div>
       </div>
     </div>
   </div>
 </div>`;
-  wire();
+  document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{lang=b.dataset.lang;render();});
+  const ri=document.getElementById('room'); ri.oninput=e=>room=e.target.value;
+  document.getElementById('suggest').onclick=()=>{room=suggestName();render();};
+  document.getElementById('newMeeting').onclick=()=>{if(!room.trim())room=suggestName();go('prejoin');};
+  document.getElementById('joinBtn').onclick=()=>{if(!room.trim()){ri.focus();return;}go('prejoin');};
+  ri.onkeydown=e=>{if(e.key==='Enter'&&room.trim())go('prejoin');};
 }
 
-function wire(){
-  document.querySelectorAll('[data-lang]').forEach(b =>
-    b.onclick = () => { lang = b.dataset.lang; render(); });
-  const roomInput = document.getElementById('room');
-  roomInput.oninput = e => { room = e.target.value; };
-  document.getElementById('suggest').onclick = () => { room = suggestName(); render(); document.getElementById('room').focus(); };
-  document.getElementById('newMeeting').onclick = () => startCall(room || suggestName());
-  document.getElementById('joinBtn').onclick = () => {
-    const r = (room || '').trim();
-    if (!r) { roomInput.focus(); return; }
-    startCall(r);
-  };
-  roomInput.onkeydown = e => { if (e.key === 'Enter' && room.trim()) startCall(room.trim()); };
+// ----------------------------------------------------------------- PRE-JOIN
+function renderPrejoin(){
+  const x=t();
+  document.getElementById('app').innerHTML=`
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#14130f">
+  <div style="display:flex;align-items:center;justify-content:space-between" class="anj-pad">
+    <button id="back" style="display:flex;align-items:center;gap:8px;background:none;border:none;color:#9a9488;font-size:14px;font-weight:600;cursor:pointer;padding:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>${x.back}</button>
+    <div style="display:flex;align-items:center;gap:9px"><div style="width:26px;height:26px;border-radius:8px;background:#f4f1ea;display:flex;align-items:center;justify-content:center;color:#14130f;font-family:'Space Grotesk';font-weight:700;font-size:15px">A</div><span style="font-family:'Space Grotesk';font-weight:600;font-size:17px">Anjuman</span></div>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 40px 50px" class="anj-pad">
+    <div class="anj-prejoin">
+      <div style="position:relative;background:#0e0d0a;border:1px solid #2a2820;border-radius:18px;overflow:hidden;aspect-ratio:16/10;display:flex;align-items:center;justify-content:center">
+        <video id="prev" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video>
+        <div id="prevOff" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#7a7466">
+          <div style="width:84px;height:84px;border-radius:99px;background:#211f19;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:600;font-size:30px;color:#cfc9bb">${initials(displayName)||'🙂'}</div>
+          <div style="font-size:13px">${x.cameraOff}</div>
+        </div>
+        <div style="position:absolute;left:12px;bottom:12px;display:flex;gap:8px">
+          <button id="tCam" title="${x.camera}" style="width:42px;height:42px;border-radius:99px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;background:#211f19;color:#f2efe6"></button>
+          <button id="tMic" title="${x.mic}" style="width:42px;height:42px;border-radius:99px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;background:#211f19;color:#f2efe6"></button>
+        </div>
+        <div style="position:absolute;right:12px;bottom:14px;width:60px;height:6px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden"><div id="lvl" style="height:100%;width:0;background:#45c69b;transition:width .08s"></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;justify-content:center">
+        <div style="font-size:13px;color:#8a8270;font-weight:600;margin-bottom:6px">${x.youreJoining}</div>
+        <div style="font-family:'Space Grotesk';font-weight:600;font-size:24px;color:#f2efe6;margin-bottom:22px;word-break:break-all">${esc(ROOM_PREFIX+room.toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,''))}</div>
+        <label style="font-size:13px;color:#9a9488;font-weight:600;margin-bottom:7px;display:block">${x.yourName}</label>
+        <input id="name" class="anj-input" value="${esc(displayName)}" placeholder="${x.namePh}" style="margin-bottom:16px;width:100%"/>
+        <label style="font-size:12px;color:#7a7466;font-weight:600;margin-bottom:6px;display:block">${x.camera}</label>
+        <select id="selCam" class="anj-sel" style="margin-bottom:12px"></select>
+        <label style="font-size:12px;color:#7a7466;font-weight:600;margin-bottom:6px;display:block">${x.mic}</label>
+        <select id="selMic" class="anj-sel" style="margin-bottom:22px"></select>
+        <button id="joinNow" style="width:100%;display:flex;align-items:center;justify-content:center;gap:9px;background:#45c69b;color:#0e1f18;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;cursor:pointer">${x.joinNow}</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+  document.getElementById('back').onclick=()=>{stopPreview();go('welcome');};
+  const nameEl=document.getElementById('name');
+  nameEl.oninput=e=>{displayName=e.target.value;};
+  document.getElementById('tCam').onclick=()=>{camOn=!camOn;applyTracks();updToggles();};
+  document.getElementById('tMic').onclick=()=>{micOn=!micOn;applyTracks();updToggles();};
+  document.getElementById('selCam').onchange=()=>startPreview();
+  document.getElementById('selMic').onchange=()=>startPreview();
+  document.getElementById('joinNow').onclick=()=>{displayName=nameEl.value.trim();stopPreview();startCall();};
+  updToggles();
+  startPreview();
+}
+const icoCam=on=>on?'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2z"/><path d="M15.5 10l5-3v10l-5-3"/></svg>':'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 16H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2M9.5 5.5h4a2 2 0 0 1 2 2v6M22 8l-5 3 5 3M2 2l20 20"/></svg>';
+const icoMic=on=>on?'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>':'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v3a3 3 0 0 0 5 2M15 9.3V5a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 10.7 6M12 18v3M2 2l20 20"/></svg>';
+function updToggles(){
+  const c=document.getElementById('tCam'),m=document.getElementById('tMic'),off=document.getElementById('prevOff'),v=document.getElementById('prev');
+  if(!c)return;
+  c.innerHTML=icoCam(camOn); c.style.background=camOn?'#211f19':'#d8674e'; c.style.color=camOn?'#f2efe6':'#fff';
+  m.innerHTML=icoMic(micOn); m.style.background=micOn?'#211f19':'#d8674e'; m.style.color=micOn?'#f2efe6':'#fff';
+  if(off){off.style.display=camOn?'none':'flex'; v.style.display=camOn?'block':'none';}
+}
+function applyTracks(){
+  if(!previewStream)return;
+  previewStream.getVideoTracks().forEach(t=>t.enabled=camOn);
+  previewStream.getAudioTracks().forEach(t=>t.enabled=micOn);
+}
+async function startPreview(){
+  stopPreview();
+  const selCam=document.getElementById('selCam'), selMic=document.getElementById('selMic');
+  const camId=selCam&&selCam.value, micId=selMic&&selMic.value;
+  try{
+    previewStream=await navigator.mediaDevices.getUserMedia({
+      video:camId?{deviceId:{exact:camId}}:true,
+      audio:micId?{deviceId:{exact:micId}}:true
+    });
+    const v=document.getElementById('prev'); if(v) v.srcObject=previewStream;
+    applyTracks();
+    // populate device lists once
+    const devs=await navigator.mediaDevices.enumerateDevices();
+    const fill=(sel,kind)=>{ if(!sel||sel.options.length)return; devs.filter(d=>d.kind===kind).forEach(d=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||kind;sel.appendChild(o);}); };
+    fill(selCam,'videoinput'); fill(selMic,'audioinput');
+    meter();
+  }catch(e){ camOn=false; updToggles(); }
+}
+function meter(){
+  try{
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const src=audioCtx.createMediaStreamSource(previewStream), an=audioCtx.createAnalyser();
+    an.fftSize=256; src.connect(an); const buf=new Uint8Array(an.frequencyBinCount);
+    const tick=()=>{ an.getByteFrequencyData(buf); const avg=buf.reduce((a,b)=>a+b,0)/buf.length;
+      const el=document.getElementById('lvl'); if(el) el.style.width=Math.min(100,(micOn?avg*1.6:0))+'%';
+      rafId=requestAnimationFrame(tick); };
+    tick();
+  }catch(e){}
+}
+function stopPreview(){
+  if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+  if(audioCtx){try{audioCtx.close();}catch(_){}audioCtx=null;}
+  if(previewStream){previewStream.getTracks().forEach(t=>t.stop());previewStream=null;}
 }
 
-// ---- real Jitsi call via External API -------------------------------------
-let externalApiLoaded = false;
-function loadExternalApi(){
-  return new Promise((resolve, reject) => {
-    if (externalApiLoaded && window.JitsiMeetExternalAPI) return resolve();
-    const s = document.createElement('script');
-    s.src = `https://${JITSI_DOMAIN}/external_api.js`;
-    s.onload = () => { externalApiLoaded = true; resolve(); };
-    s.onerror = () => reject(new Error('Failed to load Jitsi'));
-    document.head.appendChild(s);
+// ----------------------------------------------------------------- CALL
+let extLoaded=false;
+function loadExt(){return new Promise((res,rej)=>{if(extLoaded&&window.JitsiMeetExternalAPI)return res();const s=document.createElement('script');s.src=`https://${JITSI_DOMAIN}/external_api.js`;s.onload=()=>{extLoaded=true;res();};s.onerror=()=>rej(new Error('load'));document.head.appendChild(s);});}
+async function startCall(){
+  const ov=document.getElementById('anj-call'); ov.classList.add('open');
+  const roomName=ROOM_PREFIX+room.toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'');
+  try{
+    await loadExt();
+    ov.innerHTML='';
+    jitsiApi=new JitsiMeetExternalAPI(JITSI_DOMAIN,{
+      roomName, parentNode:ov, width:'100%', height:'100%',
+      userInfo:{ displayName: displayName||'' },
+      configOverwrite:{ prejoinPageEnabled:false, disableThirdPartyRequests:true, defaultLanguage:lang,
+        startWithAudioMuted:!micOn, startWithVideoMuted:!camOn, disableDeepLinking:true },
+      interfaceConfigOverwrite:{ APP_NAME:'Anjuman', NATIVE_APP_NAME:'Anjuman', PROVIDER_NAME:'Anjuman',
+        SHOW_JITSI_WATERMARK:false, SHOW_WATERMARK_FOR_GUESTS:false, SHOW_BRAND_WATERMARK:false,
+        SHOW_POWERED_BY:false, MOBILE_APP_PROMO:false, HIDE_DEEP_LINKING_LOGO:true,
+        DEFAULT_BACKGROUND:'#14130f', DISABLE_VIDEO_BACKGROUND:false, TOOLBAR_ALWAYS_VISIBLE:false },
+    });
+    callStart=Date.now();
+    jitsiApi.addListener('readyToClose', endCall);
+  }catch(e){
+    ov.innerHTML='<div class="anj-loading">Could not connect — retrying via your name room…</div>';
+    setTimeout(()=>{ov.classList.remove('open');resetCallDom();go('welcome');},2500);
+  }
+}
+function resetCallDom(){const ov=document.getElementById('anj-call');ov.innerHTML='<div class="anj-loading"><span class="anj-spin"></span><span id="anj-call-msg">Connecting…</span></div>';}
+function endCall(){
+  let secs=callStart?Math.round((Date.now()-callStart)/1000):0;
+  if(jitsiApi){try{jitsiApi.dispose();}catch(_){}jitsiApi=null;}
+  document.getElementById('anj-call').classList.remove('open'); resetCallDom();
+  go('post', secs);
+}
+
+// ----------------------------------------------------------------- POST
+function fmt(s){const m=Math.floor(s/60),ss=s%60;return `${m}:${String(ss).padStart(2,'0')}`;}
+function renderPost(secs){
+  const x=t();
+  document.getElementById('app').innerHTML=`
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#14130f;padding:24px">
+  <div style="background:#1a1813;border:1px solid #2a2820;border-radius:20px;padding:38px;max-width:420px;width:100%;text-align:center">
+    <div style="width:56px;height:56px;border-radius:99px;background:#0e1f18;color:#45c69b;display:flex;align-items:center;justify-content:center;margin:0 auto 18px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-11"/></svg></div>
+    <h2 style="font-family:'Space Grotesk';font-weight:600;font-size:24px;margin:0 0 6px;color:#f2efe6">${x.leftTitle}</h2>
+    <div style="color:#8a8270;font-size:14px;margin-bottom:24px">${x.duration}: ${fmt(secs||0)}</div>
+    <div style="display:flex;gap:10px;margin-bottom:26px">
+      <button id="rejoin" style="flex:1;background:#45c69b;color:#0e1f18;border:none;border-radius:11px;padding:13px;font-size:15px;font-weight:700;cursor:pointer">${x.rejoin}</button>
+      <button id="home" style="flex:1;background:#2a2820;color:#f2efe6;border:none;border-radius:11px;padding:13px;font-size:15px;font-weight:600;cursor:pointer">${x.backHome}</button>
+    </div>
+    <div style="font-size:13px;color:#9a9488;margin-bottom:10px">${x.rateTitle}</div>
+    <div id="stars" style="display:flex;gap:6px;justify-content:center">${[1,2,3,4,5].map(n=>`<button data-star="${n}" style="background:none;border:none;cursor:pointer;color:#3a3a34;padding:2px"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.8.6-5.1 4.5 1.5 6.7L12 17.3 5.9 20.6l1.5-6.7L2.3 8.9l6.8-.6z"/></svg></button>`).join('')}</div>
+    <div id="thx" style="font-size:12px;color:#45c69b;margin-top:10px;height:14px"></div>
+  </div>
+</div>`;
+  document.getElementById('rejoin').onclick=()=>go('prejoin');
+  document.getElementById('home').onclick=()=>{room='';go('welcome');};
+  document.querySelectorAll('[data-star]').forEach(b=>b.onclick=()=>{
+    const n=+b.dataset.star;
+    document.querySelectorAll('[data-star]').forEach(s=>s.style.color=(+s.dataset.star<=n)?'#e8b24a':'#3a3a34');
+    document.getElementById('thx').textContent=t().thanks;
   });
 }
 
-let jitsiApi = null;
-async function startCall(rawRoom){
-  const overlay = document.getElementById('anj-call');
-  const msg = document.getElementById('anj-call-msg');
-  overlay.classList.add('open');
-  const roomName = ROOM_PREFIX + rawRoom.toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'');
-  try {
-    msg.textContent = 'Connecting…';
-    await loadExternalApi();
-    jitsiApi = new JitsiMeetExternalAPI(JITSI_DOMAIN, {
-      roomName,
-      parentNode: overlay,
-      width: '100%', height: '100%',
-      configOverwrite: { prejoinPageEnabled: true, disableThirdPartyRequests: true, defaultLanguage: lang },
-      interfaceConfigOverwrite: {
-        APP_NAME: 'Anjuman', NATIVE_APP_NAME: 'Anjuman',
-        SHOW_JITSI_WATERMARK: false, SHOW_WATERMARK_FOR_GUESTS: false,
-        DEFAULT_BACKGROUND: '#14130f', TOOLBAR_ALWAYS_VISIBLE: false,
-      },
-    });
-    jitsiApi.addListener('readyToClose', endCall);
-  } catch (e) {
-    msg.textContent = 'Could not connect. Please try again.';
-    setTimeout(endCall, 2500);
-  }
+// ----------------------------------------------------------------- ROUTER
+function go(screen,arg){ render(screen,arg); }
+function render(screen,arg){
+  document.documentElement.lang=lang;
+  screen=screen||'welcome';
+  if(screen==='welcome') renderWelcome();
+  else if(screen==='prejoin') renderPrejoin();
+  else if(screen==='post') renderPost(arg);
 }
-
-function endCall(){
-  if (jitsiApi) { try { jitsiApi.dispose(); } catch(_){} jitsiApi = null; }
-  const overlay = document.getElementById('anj-call');
-  overlay.classList.remove('open');
-  overlay.innerHTML = '<div class="anj-loading"><span class="anj-spin"></span><span id="anj-call-msg">Connecting…</span></div>';
-}
-
-render();
+render('welcome');
 </script>
 </body>
 </html>
